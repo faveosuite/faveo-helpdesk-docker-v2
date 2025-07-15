@@ -31,7 +31,7 @@ echo -e "$skyblue                                  |_|     |_|   |_| \___/ |____
 sleep 0.05
 echo -e "$skyblue                                                                                                                    $reset"
 sleep 0.05
-echo -e "$skyblue                          _     _ _______ _       ______ ______  _______  ______ _     _                            $reset"
+echo -e "$skyblue                         _     _ _______ _       ______ ______  _______  ______ _     _                            $reset"
 sleep 0.05
 echo -e "$skyblue                        (_)   (_|_______|_)     (_____ (______)(_______)/ _____|_)   | |                            $reset"
 sleep 0.05
@@ -54,7 +54,7 @@ if [[ $# -lt 4 ]]; then
 fi
 
 echo "Checking Prerequisites....."
-setenforce 0
+
 apt update; apt install unzip curl git -y || yum install unzip curl git -y
 
 DockerVersion=$(docker --version)
@@ -94,24 +94,6 @@ else
     echo  -e "\n";
     exit 1;
 fi
-
-letscomposeupdown() {
-    echo "Calling letscomposeupdown function..."
-    docker-compose -f letsdocker-compose.yml up -d
-
-}
-
-selfcomposeupdown() {
-    echo "Calling selfcomposeupdown function..."
-    docker-compose up -d
-    docker exec ${domainname}-apache bash -c "update-ca-certificates"
-}
-
-paidcomposeupdown() {
-    echo "Calling paidcomposeupdown function..."
-     docker-compose up -d
-}
-
 
 
 lets() {
@@ -342,8 +324,6 @@ if [[ $? -eq 0 ]]; then
     
     sed -i 's/HOST_ROOT_DIR=/&'$host_root_dir'/' .env
     sed -i 's:CUR_DIR=:&'$PWD':' .env
-    sed -i "s|docker exec .*apache bash -c \"update-ca-certificates\"|docker exec ${domainname}-apache bash -c \"update-ca-certificates\"|" ./composedownup.sh
-
 else
     echo "Database Password Generation Failed"
 fi
@@ -367,19 +347,19 @@ fi
 
 case "$ssl_option" in
     "A")
-        letscomposeupdown  
-        ;;
-    "B")
-        selfcomposeupdown  
-        ;;
-    "C")
-        paidcomposeupdown  
+        echo "You selected Option A: Let's Encrypt SSL"
+
+        sed -i '14s|.*|      - ./letsapache/000-default.conf:/etc/apache2/sites-available/000-default.conf|' docker-compose.yml
+        sed -i '15s|.*|      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/cert.pem:/var/imported/ssl/cert.pem|' docker-compose.yml
+        sed -i '16s|.*|      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/privkey.pem:/var/imported/ssl/privkey.pem|' docker-compose.yml
+        sed -i '17s|.*|      - ${CUR_DIR}/certbot/letsencrypt/etc/letsencrypt/live/${DOMAINNAME}/fullchain.pem:/var/imported/ssl/fullchain.pem|' docker-compose.yml
         ;;
     *)
-        echo "Invalid option selected. Please choose A, B, or C."
         ;;
 esac
 
+echo "Starting Docker Compose..."
+docker compose up -d
 
 if [[ $? -eq 0 ]]; then
     echo -e "\n"
@@ -387,9 +367,9 @@ if [[ $? -eq 0 ]]; then
     echo -e "\n"
     echo "Faveo Docker installed successfully. Visit https://$domainname from your browser."
     echo "Please save the following credentials."
-    echo "Database Hostname: faveo-mariadb"
+    echo "Database Hostname: faveo-mysql"
     echo "Mysql Database root password: $db_root_pw"
-    echo "Faveo Helpdesk name: $db_name"
+    echo "Faveo Helpdesk DB name: $db_name"
     echo "Faveo Helpdesk DB User: $db_user"
     echo "Faveo Helpdesk DB Password: $db_user_pw"
     echo -e "\n"
@@ -400,9 +380,9 @@ if [[ $? -eq 0 ]]; then
     echo "Faveo Helpdesk Docker Setup Credentials" > credentials.txt
     echo "----------------------------------------" >> credentials.txt
     echo "Faveo Docker installed successfully. Visit https://$domainname from your browser." >> credentials.txt
-    echo "Database Hostname: faveo-mariadb" >> credentials.txt
+    echo "Database Hostname: faveo-mysql" >> credentials.txt
     echo "Mysql Database root password: $db_root_pw" >> credentials.txt
-    echo "Faveo Helpdesk name: $db_name" >> credentials.txt
+    echo "Faveo Helpdesk DB name: $db_name" >> credentials.txt
     echo "Faveo Helpdesk DB User: $db_user" >> credentials.txt
     echo "Faveo Helpdesk DB Password: $db_user_pw" >> credentials.txt
     echo -e "\n"

@@ -1,7 +1,7 @@
 version: "3.2"
 services:
   faveo-apache:
-    image: ladybird/faveo-apache-v3:8.2
+    image: ladybird/faveo-apache-v3:8.2.1
     container_name: ${DOMAINNAME}-apache
     networks:
       faveo-network:
@@ -10,16 +10,17 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
       - ./${HOST_ROOT_DIR}:/var/www/html/
+      - ./storage:/var/www/storage
+      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
       - ${CUR_DIR}/ssl_copy/faveolocal.crt:/etc/ssl/certs/faveolocal.crt
       - ${CUR_DIR}/ssl_copy/private.key:/etc/ssl/private/private.key
       - ${CUR_DIR}/ssl_copy/faveorootCA.crt:/usr/local/share/ca-certificates/faveorootCA.crt
+    command: /bin/bash -c "apt-get update && update-ca-certificates && echo '\''127.0.0.1 ${DOMAINNAME}'\'' >> /etc/hosts && service php8.2-fpm start && apachectl -D FOREGROUND"
     restart: always
-    
-  faveo-mariadb:
-    image: mariadb:10.6
-    container_name: ${DOMAINNAME}-mariadb
+  faveo-mysql:
+    image: mysql:8.0.42
+    container_name: ${DOMAINNAME}-mysql
     volumes:
       - db-volume:/var/lib/mysql
     networks:
@@ -39,7 +40,7 @@ services:
         faveo-network:
           ipv4_address: 172.24.0.4
   faveo-supervisor:
-      image: ladybird/faveo-supervisor-v3:8.2.1
+      image: ladybird/faveo-supervisor-v3:8.2.2
       container_name: ${DOMAINNAME}-supervisor
       volumes:
         - ./${HOST_ROOT_DIR}/:/var/www/html/
@@ -47,7 +48,7 @@ services:
         - "9001:9001"
       depends_on:
         - faveo-redis
-        - faveo-mariadb
+        - faveo-mysql
       networks:
         faveo-network:
           ipv4_address: 172.24.0.5
