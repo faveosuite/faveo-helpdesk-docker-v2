@@ -1,0 +1,78 @@
+version: "3.2"
+services:
+  faveo-apache:
+    build:
+      context: ./Dockerfile/apache
+      dockerfile: Dockerfile
+    image: faveo-apache:latest
+    container_name: ${DOMAINNAME}-apache
+    networks:
+      faveo-network:
+         ipv4_address: 172.24.0.2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./${HOST_ROOT_DIR}:/var/www/html/
+      - ./storage:/var/www/storage
+      - ./apache/000-default.conf:/etc/apache2/sites-available/000-default.conf
+      - ${CUR_DIR}/ssl_copy/faveolocal.crt:/etc/ssl/certs/faveolocal.crt
+      - ${CUR_DIR}/ssl_copy/private.key:/etc/ssl/private/private.key
+      - ${CUR_DIR}/ssl_copy/faveorootCA.crt:/usr/local/share/ca-certificates/faveorootCA.crt
+    command: /bin/bash -c "apt-get update && update-ca-certificates && chown -R www-data:www-data /var/www/html/ && echo '127.0.0.1 ${DOMAINNAME}' >> /etc/hosts && service php8.4-fpm start && apachectl -D FOREGROUND"
+    restart: always
+
+  faveo-mysql:
+    image: mysql:8.4.11
+    container_name: ${DOMAINNAME}-mysql
+    volumes:
+      - db-volume:/var/lib/mysql
+    networks:
+      faveo-network:
+         ipv4_address: 172.24.0.3
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    restart: on-failure
+
+  faveo-redis:
+      image: redis
+      container_name: ${DOMAINNAME}-redis
+      restart: always
+      networks:
+        faveo-network:
+          ipv4_address: 172.24.0.4
+
+  faveo-supervisor:
+      build:
+        context: ./Dockerfile/supervisor
+        dockerfile: Dockerfile
+      image: faveo-supervisor:latest
+      container_name: ${DOMAINNAME}-supervisor
+      volumes:
+        - ./${HOST_ROOT_DIR}/:/var/www/html/
+        - ./supervisor:/etc/supervisor/conf.d
+      ports:
+        - "9001:9001"
+      depends_on:
+        - faveo-redis
+        - faveo-mysql
+#        - faveo-nats
+      networks:
+        faveo-network:
+          ipv4_address: 172.24.0.5
+      restart: on-failure
+
+volumes:
+  db-volume:
+    external:
+      name: ${DOMAINNAME}-faveoDB
+#  nats-data:
+
+networks:
+    faveo-network:
+      external:
+        name: ${DOMAINNAME}-faveo
+

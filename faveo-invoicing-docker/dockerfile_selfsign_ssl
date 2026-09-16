@@ -1,0 +1,42 @@
+# Use an official Ubuntu image as the base
+FROM ubuntu
+
+# Set environment variables to avoid user prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+ARG CN
+
+# Update and install Apache and OpenSSL
+RUN apt-get update && apt-get install -y apache2 openssl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/ssl/copy
+
+WORKDIR /etc/ssl/copy
+
+# Root CA: self-signed, and explicitly marked as a CA (basicConstraints/keyUsage)
+# so that clients/openssl don't reject it with "invalid CA certificate" /
+# "unsuitable certificate purpose".
+RUN openssl ecparam -out faveoroot.key -name prime256v1 -genkey
+RUN openssl req -new -x509 -sha256 -days 3650 -key faveoroot.key -out faveorootCA.crt \
+    -subj "/CN=Faveo Root CA" \
+    -addext "basicConstraints=critical,CA:TRUE" \
+    -addext "keyUsage=critical,keyCertSign,cRLSign"
+
+# Leaf/server cert: needs subjectAltName (CN alone is not enough for modern TLS
+# clients) plus basicConstraints=CA:FALSE and serverAuth EKU.
+RUN openssl ecparam -out private.key -name prime256v1 -genkey
+RUN openssl req -new -sha256 -key private.key -out faveolocal.csr \
+    -subj "/CN=${CN}" \
+    -addext "subjectAltName=DNS:${CN}" \
+    -addext "basicConstraints=CA:FALSE" \
+    -addext "keyUsage=digitalSignature,keyAgreement" \
+    -addext "extendedKeyUsage=serverAuth"
+RUN openssl x509 -req -in faveolocal.csr -CA faveorootCA.crt -CAkey faveoroot.key -CAcreateserial \
+    -out faveolocal.crt -days 3650 -sha256 -copy_extensions copy
+    
+
+# Expose ports 80 and 443 for HTTP and HTTPS traffic
+EXPOSE 80 443
+
+# Start Apache in the foreground
+CMD ["apachectl", "-D", "FOREGROUND"]
