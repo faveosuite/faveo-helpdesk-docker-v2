@@ -1,6 +1,6 @@
 ---
 # <b>Deploying Faveo Helpdesk on Docker</b>   <!-- omit in toc -->
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Docker_%28container_engine%29_logo.svg/440px-Docker_%28container_engine%29_logo.svg.png" alt="drawing" width="300"/>
+<img src="https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4e/Docker_%28container_engine%29_logo.svg/960px-Docker_%28container_engine%29_logo.svg.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=thumbnail" alt="drawing" width="300"/>
 
 ## <b>Faveo Helpdesk Docker</b>
 
